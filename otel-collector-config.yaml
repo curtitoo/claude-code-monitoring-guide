@@ -26,15 +26,22 @@ exporters:
     sampling_initial: 5
     sampling_thereafter: 200
 
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
 service:
   pipelines:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [prometheus, debug]
-      
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/loki, debug]
+
   extensions: []
-  
+
   telemetry:
     logs:
-      level: "debug"
+      level: "info"

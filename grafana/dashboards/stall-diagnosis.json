@@ -1,0 +1,287 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "🔴 API Request Duration (The Main Bottleneck)",
+      "description": "How long each API call to Anthropic takes. Spikes = API-side stalls. Your avg is ~21s, max hit 295s.",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "pointSize": 6,
+            "showPoints": "always",
+            "thresholdsStyle": { "mode": "dashed" }
+          },
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 30000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "{service_name=\"claude-code\", event_name=\"api_request\"} | json | unwrap duration_ms [1m]",
+          "queryType": "range",
+          "refId": "A",
+          "legendFormat": "API Request ({{model}})"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "🟡 API Errors (429s, 500s, Timeouts)",
+      "description": "API errors with duration — shows how long you wait before an error is returned. Your avg error wait is 195s.",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "{service_name=\"claude-code\", event_name=\"api_error\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "labels",
+            "format": "auto"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "duration_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          }
+        ]
+      }
+    },
+    {
+      "title": "🔧 Tool Execution Duration by Tool",
+      "description": "Duration of each tool call. Helps identify if hooks/tools are the bottleneck vs API.",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "pointSize": 5,
+            "showPoints": "never",
+            "stacking": { "mode": "none" }
+          },
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5000 },
+              { "color": "red", "value": 30000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "{service_name=\"claude-code\", event_name=\"tool_result\"} | json | unwrap duration_ms [1m]",
+          "queryType": "range",
+          "refId": "A",
+          "legendFormat": "{{tool_name}}"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "📊 Top 10 Slowest Events (All Types)",
+      "description": "The single most useful panel — shows the slowest individual events across all categories.",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "{service_name=\"claude-code\"} | duration_ms != \"0\"",
+          "queryType": "range",
+          "refId": "A",
+          "maxLines": 500
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "labels",
+            "format": "auto"
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              { "field": "duration_ms", "desc": true }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": { "limitField": 10 }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "duration_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          }
+        ]
+      }
+    },
+    {
+      "title": "⏱️ Session Token Usage Over Time",
+      "description": "Tracks input/output/cache tokens. Context bloat = bigger input tokens = slower API responses.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(claude_code_token_usage_tokens_total[5m])",
+          "legendFormat": "{{type}} ({{model}})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "💰 Cost Accumulation",
+      "description": "Running cost per session. Spikes correlate with large context windows and retries.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "claude_code_cost_usage_USD_total",
+          "legendFormat": "Cost ({{model}})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "🔄 Permission Decisions (Accept vs Deny latency)",
+      "description": "Time spent waiting on permission prompts. 'ask' decisions block until you respond.",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "points",
+            "pointSize": 8
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "{service_name=\"claude-code\", event_name=~\"tool_decision.*\"} | json | unwrap duration_ms [1m]",
+          "queryType": "range",
+          "refId": "A",
+          "legendFormat": "{{tool_name}} ({{decision_type}})"
+        }
+      ]
+    },
+    {
+      "title": "📈 Event Volume by Type",
+      "description": "How many events of each type are firing. High tool_result counts = lots of hook activity.",
+      "type": "piechart",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "targets": [
+        {
+          "expr": "sum by (event_name) (count_over_time({service_name=\"claude-code\"}[1h]))",
+          "queryType": "range",
+          "refId": "A",
+          "legendFormat": "{{event_name}}"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right" },
+        "pieType": "donut"
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["claude-code", "stall-diagnosis", "latency"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Claude Code - Stall Diagnosis",
+  "uid": "claude-code-stall-diagnosis",
+  "version": 1
+}
